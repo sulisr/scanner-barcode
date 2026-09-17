@@ -74,13 +74,22 @@
     Arahkan kamera belakang ke barcode produk.
   </p>
 
-  <button id="btnMulai" onclick="mulaiScanner()">
-    Mulai Scanner
-  </button>
+  <button
+  id="btnMulai"
+  type="button"
+  onclick="mulaiScanner()"
+  style="display:none;"
+    >
+  Mulai Scanner
+</button>
 
-  <button id="btnTutup" onclick="window.close()">
-    Tutup
-  </button>
+  <button
+  id="btnTutup"
+  type="button"
+  onclick="tutupScanner()"
+>
+  Tutup
+</button>
 
   <div id="reader"></div>
 
@@ -91,6 +100,12 @@
   <script>
     let scanner = null;
     let sedangMemproses = false;
+    window.addEventListener("load", function() {
+    setTimeout(function() {
+    mulaiScanner();
+    }, 500);
+    });
+
 
 async function mulaiScanner() {
     sedangMemproses = false;
@@ -101,6 +116,8 @@ async function mulaiScanner() {
     document.getElementById("hasil");
 
   btnMulai.disabled = true;
+  btnMulai.style.display = "none";
+  btnMulai.textContent = "Memulai...";
   hasil.textContent = "Meminta izin kamera...";
 
   try {
@@ -212,24 +229,26 @@ async function mulaiScanner() {
       "Kamera aktif. Posisikan barcode lurus di dalam kotak.";
 
   } catch (error) {
-    console.error(error);
+  console.error("Kamera gagal dibuka:", error);
 
-    hasil.textContent =
-      "Kamera gagal dibuka: " +
-      ambilPesanError(error);
+  hasil.textContent =
+    "Kamera gagal dibuka: " +
+    ambilPesanError(error);
 
-    btnMulai.disabled = false;
+  btnMulai.disabled = false;
+  btnMulai.style.display = "inline-block";
+  btnMulai.textContent = "Coba Lagi";
 
-    if (scanner) {
-      try {
-        await scanner.clear();
-      } catch (errorClear) {
-        console.log(errorClear);
-      }
-
-      scanner = null;
+  if (scanner) {
+    try {
+      await scanner.clear();
+    } catch (errorClear) {
+      console.log(errorClear);
     }
+
+    scanner = null;
   }
+};
 }
 
     async function barcodeBerhasil(
@@ -298,18 +317,15 @@ async function mulaiScanner() {
     }, 700);
 
   } else {
-    /*
-     * Jika halaman scanner dibuka langsung,
-     * tampilkan hasil dan izinkan scan ulang.
-     */
-    hasil.textContent =
-      "Barcode: " + barcode;
+  hasil.textContent =
+    "Barcode: " + barcode;
 
-    btnMulai.disabled = false;
-    btnMulai.textContent = "Scan Lagi";
+  btnMulai.disabled = false;
+  btnMulai.style.display = "inline-block";
+  btnMulai.textContent = "Scan Lagi";
 
-    sedangMemproses = false;
-  }
+  sedangMemproses = false;
+}
 }
     function ambilPesanError(error) {
       if (!error) {
@@ -336,6 +352,32 @@ async function mulaiScanner() {
         scanner.stop().catch(function() {});
       }
     });
+
+async function tutupScanner() {
+  const hasil =
+    document.getElementById("hasil");
+
+  try {
+    if (scanner) {
+      await scanner.stop();
+      await scanner.clear();
+      scanner = null;
+    }
+  } catch (error) {
+    console.log(
+      "Scanner sudah berhenti atau gagal dihentikan:",
+      error
+    );
+  }
+
+  window.close();
+
+  setTimeout(function() {
+    hasil.textContent =
+      "Jika halaman tidak tertutup otomatis, tutup tab ini secara manual.";
+  }, 500);
+}
+
   </script>
 
 </body>
