@@ -93,6 +93,7 @@
     let sedangMemproses = false;
 
 async function mulaiScanner() {
+    sedangMemproses = false;
   const btnMulai =
     document.getElementById("btnMulai");
 
@@ -232,54 +233,84 @@ async function mulaiScanner() {
 }
 
     async function barcodeBerhasil(
-      decodedText,
-      decodedResult
-    ) {
-      if (sedangMemproses) {
-        return;
-      }
+  decodedText,
+  decodedResult
+) {
+  if (sedangMemproses) {
+    return;
+  }
 
-      sedangMemproses = true;
+  const barcode =
+    String(decodedText || "").trim();
 
-      const barcode =
-        String(decodedText || "").trim();
+  if (!barcode) {
+    return;
+  }
 
-      document.getElementById("hasil").textContent =
-        "Berhasil: " + barcode;
+  sedangMemproses = true;
 
-      if (navigator.vibrate) {
-        navigator.vibrate(150);
-      }
+  const hasil =
+    document.getElementById("hasil");
 
-      try {
-        if (scanner) {
-          await scanner.stop();
-          await scanner.clear();
-        }
-      } catch (error) {
-        console.log(error);
-      }
+  const btnMulai =
+    document.getElementById("btnMulai");
 
-      if (window.opener) {
-        window.opener.postMessage(
-          {
-            type: "HASIL_SCAN_BARCODE",
-            barcode: barcode
-          },
-          "*"
-        );
+  hasil.textContent =
+    "Berhasil membaca: " + barcode;
 
-        setTimeout(function() {
-          window.close();
-        }, 500);
+  if (navigator.vibrate) {
+    navigator.vibrate(150);
+  }
 
-      } else {
-        document.getElementById("hasil").textContent =
-          "Barcode: " + barcode +
-          ". Salin barcode secara manual.";
-      }
+  try {
+    if (scanner) {
+      await scanner.stop();
+      await scanner.clear();
+      scanner = null;
     }
+  } catch (error) {
+    console.log(
+      "Scanner gagal dihentikan:",
+      error
+    );
 
+    scanner = null;
+  }
+
+  /*
+   * Kirim hasil ke aplikasi Master Barang
+   * jika scanner dibuka melalui tombol popup.
+   */
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage(
+      {
+        type: "HASIL_SCAN_BARCODE",
+        barcode: barcode
+      },
+      "*"
+    );
+
+    hasil.textContent =
+      "Barcode berhasil dikirim: " + barcode;
+
+    setTimeout(function() {
+      window.close();
+    }, 700);
+
+  } else {
+    /*
+     * Jika halaman scanner dibuka langsung,
+     * tampilkan hasil dan izinkan scan ulang.
+     */
+    hasil.textContent =
+      "Barcode: " + barcode;
+
+    btnMulai.disabled = false;
+    btnMulai.textContent = "Scan Lagi";
+
+    sedangMemproses = false;
+  }
+}
     function ambilPesanError(error) {
       if (!error) {
         return "Kesalahan tidak diketahui.";
