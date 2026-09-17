@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Scanner Barcode</title>
+
+  <script
+    src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"
+  ></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      text-align: center;
+    }
+
+    h2 {
+      margin-top: 10px;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 500px;
+      margin: 20px auto;
+      overflow: hidden;
+      border-radius: 10px;
+      background: white;
+    }
+
+    #hasil {
+      margin: 15px auto;
+      padding: 12px;
+      max-width: 475px;
+      min-height: 20px;
+      border-radius: 6px;
+      background: #222;
+    }
+
+    button {
+      padding: 12px 18px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #btnMulai {
+      color: white;
+      background: #673ab7;
+    }
+
+    #btnTutup {
+      background: #ddd;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Scan Barcode Barang</h2>
+
+  <p>
+    Arahkan kamera belakang ke barcode produk.
+  </p>
+
+  <button id="btnMulai" onclick="mulaiScanner()">
+    Mulai Scanner
+  </button>
+
+  <button id="btnTutup" onclick="window.close()">
+    Tutup
+  </button>
+
+  <div id="reader"></div>
+
+  <div id="hasil">
+    Kamera belum dimulai.
+  </div>
+
+  <script>
+    let scanner = null;
+    let sedangMemproses = false;
+
+    async function mulaiScanner() {
+      const btnMulai =
+        document.getElementById("btnMulai");
+
+      const hasil =
+        document.getElementById("hasil");
+
+      btnMulai.disabled = true;
+      hasil.textContent = "Meminta izin kamera...";
+
+      scanner = new Html5Qrcode("reader");
+
+      const config = {
+        fps: 12,
+
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+          const width =
+            Math.floor(viewfinderWidth * 0.85);
+
+          const height =
+            Math.floor(viewfinderHeight * 0.35);
+
+          return {
+            width: width,
+            height: height
+          };
+        },
+
+        aspectRatio: 1.777778,
+
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.ITF
+        ]
+      };
+
+      try {
+        await scanner.start(
+          {
+            facingMode: {
+              ideal: "environment"
+            }
+          },
+          config,
+          barcodeBerhasil,
+          function() {
+            // Kegagalan setiap frame diabaikan.
+            // Scanner akan terus membaca frame berikutnya.
+          }
+        );
+
+        hasil.textContent =
+          "Kamera aktif. Arahkan ke barcode.";
+
+      } catch (error) {
+        console.error(error);
+
+        hasil.textContent =
+          "Kamera gagal dibuka: " +
+          ambilPesanError(error);
+
+        btnMulai.disabled = false;
+      }
+    }
+
+    async function barcodeBerhasil(
+      decodedText,
+      decodedResult
+    ) {
+      if (sedangMemproses) {
+        return;
+      }
+
+      sedangMemproses = true;
+
+      const barcode =
+        String(decodedText || "").trim();
+
+      document.getElementById("hasil").textContent =
+        "Berhasil: " + barcode;
+
+      if (navigator.vibrate) {
+        navigator.vibrate(150);
+      }
+
+      try {
+        if (scanner) {
+          await scanner.stop();
+          await scanner.clear();
+        }
+      } catch (error) {
+        console.log(error);
+      }
+
+      if (window.opener) {
+        window.opener.postMessage(
+          {
+            type: "HASIL_SCAN_BARCODE",
+            barcode: barcode
+          },
+          "*"
+        );
+
+        setTimeout(function() {
+          window.close();
+        }, 500);
+
+      } else {
+        document.getElementById("hasil").textContent =
+          "Barcode: " + barcode +
+          ". Salin barcode secara manual.";
+      }
+    }
+
+    function ambilPesanError(error) {
+      if (!error) {
+        return "Kesalahan tidak diketahui.";
+      }
+
+      if (error.name === "NotAllowedError") {
+        return "Izin kamera ditolak. Izinkan kamera di pengaturan browser.";
+      }
+
+      if (error.name === "NotFoundError") {
+        return "Kamera tidak ditemukan.";
+      }
+
+      if (error.name === "NotReadableError") {
+        return "Kamera sedang digunakan aplikasi lain.";
+      }
+
+      return error.message || String(error);
+    }
+
+    window.addEventListener("beforeunload", function() {
+      if (scanner) {
+        scanner.stop().catch(function() {});
+      }
+    });
+  </script>
+
+</body>
+</html>
