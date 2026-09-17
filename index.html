@@ -92,36 +92,34 @@
     let scanner = null;
     let sedangMemproses = false;
 
-    async function mulaiScanner() {
-      const btnMulai =
-        document.getElementById("btnMulai");
+async function mulaiScanner() {
+  const btnMulai =
+    document.getElementById("btnMulai");
 
-      const hasil =
-        document.getElementById("hasil");
+  const hasil =
+    document.getElementById("hasil");
 
-      btnMulai.disabled = true;
-      hasil.textContent = "Meminta izin kamera...";
+  btnMulai.disabled = true;
+  hasil.textContent = "Meminta izin kamera...";
 
-      scanner = new Html5Qrcode("reader");
+  try {
+    if (scanner) {
+      try {
+        await scanner.stop();
+      } catch (error) {
+        console.log(error);
+      }
 
-      const config = {
-        fps: 12,
+      try {
+        await scanner.clear();
+      } catch (error) {
+        console.log(error);
+      }
+    }
 
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-          const width =
-            Math.floor(viewfinderWidth * 0.85);
-
-          const height =
-            Math.floor(viewfinderHeight * 0.35);
-
-          return {
-            width: width,
-            height: height
-          };
-        },
-
-        aspectRatio: 1.777778,
-
+    scanner = new Html5Qrcode(
+      "reader",
+      {
         formatsToSupport: [
           Html5QrcodeSupportedFormats.QR_CODE,
           Html5QrcodeSupportedFormats.EAN_13,
@@ -131,35 +129,107 @@
           Html5QrcodeSupportedFormats.CODE_128,
           Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.ITF
-        ]
-      };
-
-      try {
-        await scanner.start(
-          {
-            facingMode: "environment"
-          },
-          config,
-          barcodeBerhasil,
-          function() {
-            // Kegagalan setiap frame diabaikan.
-            // Scanner akan terus membaca frame berikutnya.
-          }
-        );
-
-        hasil.textContent =
-          "Kamera aktif. Arahkan ke barcode.";
-
-      } catch (error) {
-        console.error(error);
-
-        hasil.textContent =
-          "Kamera gagal dibuka: " +
-          ambilPesanError(error);
-
-        btnMulai.disabled = false;
+        ],
+        verbose: false
       }
+    );
+
+    const config = {
+      fps: 15,
+
+      qrbox: function(
+        viewfinderWidth,
+        viewfinderHeight
+      ) {
+        return {
+          width: Math.floor(
+            viewfinderWidth * 0.90
+          ),
+
+          height: Math.floor(
+            viewfinderHeight * 0.45
+          )
+        };
+      },
+
+      disableFlip: false
+    };
+
+    try {
+      await scanner.start(
+        {
+          facingMode: "environment"
+        },
+        config,
+        barcodeBerhasil,
+        function() {
+          // Gagal membaca satu frame adalah normal.
+          // Scanner akan mencoba frame berikutnya.
+        }
+      );
+
+    } catch (errorKamera) {
+      console.log(
+        "Pemilihan kamera otomatis gagal:",
+        errorKamera
+      );
+
+      const cameras =
+        await Html5Qrcode.getCameras();
+
+      if (!cameras || cameras.length === 0) {
+        throw new Error(
+          "Tidak ada kamera yang ditemukan."
+        );
+      }
+
+      const kameraBelakang =
+        cameras.find(function(camera) {
+          const label =
+            String(camera.label || "")
+              .toLowerCase();
+
+          return (
+            label.includes("back") ||
+            label.includes("rear") ||
+            label.includes("environment") ||
+            label.includes("belakang")
+          );
+        }) || cameras[cameras.length - 1];
+
+      await scanner.start(
+        kameraBelakang.id,
+        config,
+        barcodeBerhasil,
+        function() {
+          // Scanner terus mencoba.
+        }
+      );
     }
+
+    hasil.textContent =
+      "Kamera aktif. Posisikan barcode lurus di dalam kotak.";
+
+  } catch (error) {
+    console.error(error);
+
+    hasil.textContent =
+      "Kamera gagal dibuka: " +
+      ambilPesanError(error);
+
+    btnMulai.disabled = false;
+
+    if (scanner) {
+      try {
+        await scanner.clear();
+      } catch (errorClear) {
+        console.log(errorClear);
+      }
+
+      scanner = null;
+    }
+  }
+}
 
     async function barcodeBerhasil(
       decodedText,
