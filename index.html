@@ -19,7 +19,7 @@
       margin: 0;
       padding: 20px;
       font-family: Arial, sans-serif;
-      background: #111;
+      background:#111;
       color: white;
       text-align: center;
     }
@@ -137,9 +137,7 @@
       try {
         await scanner.start(
           {
-            facingMode: {
-              ideal: "environment"
-            }
+            facingMode: "environment"
           },
           config,
           barcodeBerhasil,
